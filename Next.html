@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Root Access — Ojas Core</title>
+
+  <style>
+    :root{
+      --bg:#040406;
+      --neon:#00ffb2;
+      --accent:#6f00ff;
+      --flame-center:#0af;
+      --flame-mid:#7a00ff;
+      --flame-edge:#ff8a00;
+      --muted: rgba(255,255,255,0.07);
+      --glass: rgba(255,255,255,0.03);
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%;font-family: ui-monospace, "Roboto Mono", Menlo, monospace;background:
+      radial-gradient(1200px 500px at 10% 10%, rgba(112,0,255,0.04), transparent 6%),
+      linear-gradient(180deg,#020204 0%, #06060a 60%);
+      color:#cfeee1; -webkit-font-smoothing:antialiased;}
+
+    .stage {min-height:100vh; display:flex; align-items:center; justify-content:center; padding:28px;}
+
+    .console {
+      width:980px; max-width:96%;
+      border-radius:14px; overflow:hidden;
+      background: linear-gradient(180deg, rgba(8,8,10,0.62), rgba(6,6,8,0.38));
+      border:1px solid rgba(255,255,255,0.04);
+      box-shadow: 0 40px 110px rgba(0,0,0,0.75);
+      display:flex; gap:0; transform:translateZ(0);
+    }
+
+    /* Left terminal */
+    .left { flex:0 0 460px; padding:24px 22px; background:linear-gradient(90deg, rgba(0,0,0,0.64), rgba(6,0,10,0.32)); border-right:1px solid rgba(255,255,255,0.02); position:relative; }
+    .title { font-size:12px; color:var(--muted); letter-spacing:2px; margin-bottom:10px; }
+
+    .terminal { background: linear-gradient(180deg, rgba(2,2,3,0.34), rgba(2,2,3,0.08)); border:1px solid rgba(0,255,136,0.03); padding:14px; border-radius:10px; height:360px; overflow:hidden; position:relative; box-shadow:inset 0 3px 18px rgba(0,0,0,0.6);}
+    .boot-lines { font-size:13.8px; line-height:1.5; color:#bfffe0; white-space:pre-wrap; height:100%; overflow:auto; padding-right:8px; }
+
+    .boot-progress { height:8px; width:100%; border-radius:6px; background: rgba(255,255,255,0.03); margin-top:12px; overflow:hidden; }
+    .boot-progress > i { display:block; height:100%; width:0%; background: linear-gradient(90deg, rgba(0,255,136,0.12), rgba(111,0,255,0.14)); box-shadow:0 0 18px rgba(0,255,136,0.05); transition: width 420ms linear; }
+
+    .flash { position:absolute; inset:0; pointer-events:none; opacity:0; mix-blend-mode:screen; background:
+      radial-gradient(circle at 20% 20%, rgba(0,255,176,0.06), transparent 6%),
+      radial-gradient(circle at 80% 80%, rgba(111,0,255,0.04), transparent 8%); }
+    .flash.active { animation:flashit 900ms ease forwards; }
+    @keyframes flashit {0%{opacity:0}20%{opacity:0.9}100%{opacity:0}}
+
+    /* Right dashboard */
+    .right { flex:1; padding:22px; display:flex; flex-direction:column; gap:12px; justify-content:center; position:relative; }
+
+    .top-row { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .welcome { display:flex; align-items:center; gap:12px; }
+    .avatar { width:78px; height:78px; border-radius:12px; background:linear-gradient(180deg,#05040a,#0b0020); display:flex; align-items:center; justify-content:center; border:1px solid rgba(255,255,255,0.04); box-shadow:0 10px 30px rgba(111,0,255,0.06); position:relative; overflow:visible; }
+    .avatar .flame-wrap { width:100%; height:100%; display:flex; align-items:center; justify-content:center; transform-origin:center; }
+
+    .name-wrap { display:flex; flex-direction:column; gap:2px; }
+    .label-small { font-size:12px; color:var(--muted); letter-spacing:1px; }
+    .name { font-size:20px; font-weight:800; background: linear-gradient(90deg,var(--neon),var(--accent)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; letter-spacing:1px; }
+
+    .badge { font-size:12px; padding:7px 12px; border-radius:999px; border:1px solid rgba(255,255,255,0.04); background:linear-gradient(180deg, rgba(0,255,136,0.03), rgba(111,0,255,0.02)); color:#dfffe7; }
+
+    .panel { background: linear-gradient(180deg, rgba(3,3,4,0.56), rgba(5,5,6,0.36)); border-radius:12px; padding:12px; display:flex; gap:12px; align-items:center; }
+    .stat { flex:1; min-width:0; }
+    .stat .label { font-size:12px; color:var(--muted); margin-bottom:6px; }
+    .stat .value { font-size:18px; font-weight:700; color:#e8fff5; }
+
+    .meter { height:10px; width:100%; background: rgba(255,255,255,0.03); border-radius:999px; overflow:hidden; margin-top:8px; }
+    .meter > i { display:block; height:100%; width:10%; background: linear-gradient(90deg,var(--neon),var(--accent)); transition: width 700ms cubic-bezier(.22,.9,.3,1); box-shadow:0 6px 18px rgba(111,0,255,0.06); }
+
+    .action-row { display:flex; gap:10px; align-items:center; margin-top:6px; }
+    .btn { padding:10px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.04); background: linear-gradient(90deg, rgba(111,0,255,0.08), rgba(0,255,176,0.02)); cursor:pointer; color:#e8fff5; font-weight:700; letter-spacing:0.4px; }
+    .btn.secondary { background:transparent; color:var(--neon); border:1px solid rgba(0,255,136,0.08); }
+
+    .host { display:flex; align-items:center; gap:10px; font-size:13px; }
+    .dot { width:12px; height:12px; border-radius:50%; background:var(--neon); box-shadow:0 0 12px rgba(0,255,176,0.18); transition:box-shadow 320ms linear, transform 320ms linear; }
+
+    .signature { font-size:12px; color:var(--muted); margin-top:8px; height:18px; overflow:hidden; white-space:nowrap; }
+
+    /* small decorative particles behind avatar */
+    .particle { position:absolute; border-radius:50%; pointer-events:none; opacity:0.12; filter:blur(6px); }
+
+    @media (max-width:880px){
+      .console { flex-direction:column; }
+      .left{flex-basis:auto;width:100%;}
+      .right{width:100%;padding:18px;}
+      .avatar{width:64px;height:64px}
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="console" role="region" aria-label="admin-console">
+      <div class="left" id="leftCol">
+        <div class="title">SYSTEM BOOT · SECURE SHELL</div>
+        <div class="terminal" id="terminal">
+          <div class="boot-lines" id="bootLines"></div>
+          <div class="boot-progress" aria-hidden="true"><i id="bootBar"></i></div>
+        </div>
+        <div class="flash" id="flashLayer"></div>
+      </div>
+
+      <div class="right">
+        <div class="top-row">
+          <div class="welcome">
+            <div class="avatar" id="avatar">
+              <div class="flame-wrap" id="flameWrap" aria-hidden="true">
+                <!-- SVG holographic heavenly flame (Xiao-Yan inspired) -->
+                <svg id="hflame" viewBox="0 0 200 200" width="78" height="78" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
+                  <defs>
+                    <radialGradient id="fg" cx="50%" cy="40%">
+                      <stop offset="0%" stop-color="#8ef" stop-opacity="1"/>
+                      <stop offset="38%" stop-color="#0af" stop-opacity="0.95"/>
+                      <stop offset="62%" stop-color="#7a00ff" stop-opacity="0.85"/>
+                      <stop offset="100%" stop-color="#ff8a00" stop-opacity="0.8"/>
+                    </radialGradient>
+
+                    <filter id="glow">
+                      <feGaussianBlur stdDeviation="4" result="blur"/>
+                      <feMerge>
+                        <feMergeNode in="blur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                      </feMerge>
+                    </filter>
+
+                    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+                      <feGaussianBlur stdDeviation="3"/>
+                    </filter>
+                  </defs>
+
+                  <!-- subtle back halo -->
+                  <circle cx="100" cy="100" r="58" fill="url(#fg)" opacity="0.12" filter="url(#soft)"/>
+
+                  <!-- main flame shapes (3 layered paths) -->
+                  <g filter="url(#glow)">
+                    <path id="core" d="M100 140 C88 118,84 100,92 82 C100 64,120 56,120 40 C120 24,102 18,94 30 C86 42,74 58,78 74 C82 90,98 92,100 110 C102 128,100 140,100 140Z"
+                      fill="url(#fg)" opacity="0.95"/>
+                    <path id="mid" d="M100 150 C90 132,86 116,92 98 C98 82,116 72,118 58 C120 44,106 38,98 50 C90 62,78 78,82 96 C86 114,96 128,100 150Z"
+                      fill="#6f00ff" opacity="0.55"/>
+                    <path id="edge" d="M100 155 C92 136,88 120,92 104 C100 84,120 70,122 56 C124 42,112 36,106 50 C100 64,86 82,90 104 C94 126,100 150,100 155Z"
+                      fill="#ff8a00" opacity="0.32"/>
+                  </g>
+
+                  <!-- tiny embers -->
+                  <g id="embers" opacity="0.9">
+                    <circle cx="72" cy="38" r="1.6" fill="#ffd4a6" opacity="0.9"/>
+                    <circle cx="130" cy="44" r="1.8" fill="#aef8d8" opacity="0.95"/>
+                    <circle cx="112" cy="22" r="1.3" fill="#fff7c3" opacity="0.85"/>
+                  </g>
+                </svg>
+              </div>
+            </div>
+
+            <div class="name-wrap">
+              <div class="label-small">ACCESS LEVEL</div>
+              <div class="name" id="displayName">Ojas</div>
+            </div>
+          </div>
+
+          <div class="badge">ROOT</div>
+        </div>
+
+        <div class="panel">
+          <div class="stat">
+            <div class="label">Server Ping</div>
+            <div class="value" id="pingVal">— ms</div>
+            <div class="meter" aria-hidden="true"><i id="pingBar"></i></div>
+          </div>
+
+          <div class="stat">
+            <div class="label">Server Load</div>
+            <div class="value" id="loadVal">—%</div>
+            <div class="meter" aria-hidden="true"><i id="loadBar"></i></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div style="flex:1">
+            <div class="label">Host</div>
+            <div class="value host"><span class="dot" id="hostDot"></span><span id="hostName">ojas-server</span></div>
+          </div>
+          <div style="width:160px">
+            <div class="label">Uptime</div>
+            <div class="value" id="uptime">—</div>
+          </div>
+        </div>
+
+        <div class="panel" style="align-items:center; justify-content:space-between;">
+          <div style="flex:1">
+            <div class="label">Website</div>
+            <div class="value" id="siteName">nova.app</div>
+          </div>
+
+          <div style="min-width:160px; text-align:right;">
+            <div class="label">Security</div>
+            <div class="value" id="secState">HARDENED</div>
+          </div>
+        </div>
+
+        <div class="action-row">
+          <button class="btn" id="recheck">Re-check</button>
+          <button class="btn secondary" id="forceLogout">Force Logout</button>
+        </div>
+
+        <div class="signature" id="signature">—</div>
+        <div class="footer">
+          <div id="lastCheck">Last check: —</div>
+          <div id="notes" style="color:var(--muted)">Console live · heavenly core active</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ---------- util ---------- */
+    const randInt = (min,max) => Math.floor(Math.random()*(max-min+1))+min;
+    const clamp = (v,min,max) => Math.max(min, Math.min(max, v));
+    const smooth = (cur,target,step=0.08) => cur + (target-cur)*step;
+
+    /* ---------- username ---------- */
+    let username = (localStorage.getItem('user') || 'Ojas').toString();
+    document.getElementById('displayName').textContent = username;
+
+    /* ---------- boot lines ---------- */
+    const steps = [
+      "Initializing secure hardware modules...",
+      "Loading kernel extensions...",
+      "Checking integrity of credentials...",
+      `Validating user: ${username} ...`,
+      "Verifying root tokens...",
+      "Connecting to host ojas-server...",
+      "Handshake complete · secure channel established",
+      "Scanning services · auth, db, cache, web",
+      "Performing last-stage checks..."
+    ];
+
+    const bootLinesEl = document.getElementById('bootLines');
+    const bootBarEl = document.getElementById('bootBar');
+    const flash = document.getElementById('flashLayer');
+
+    let progress = 0;
+    let currentText = "";
+
+    function typeLine(line, idx, doneCb) {
+      let i = 0;
+      const speed = 14 + Math.random()*28;
+      const timer = setInterval(()=> {
+        currentText += line.charAt(i);
+        bootLinesEl.textContent = currentText + ((i%2===0) ? " ▌" : " ");
+        i++;
+        bootLinesEl.scrollTop = 9999;
+        if (i >= line.length) {
+          clearInterval(timer);
+          currentText += "\n";
+          setTimeout(() => doneCb(idx), 160 + Math.random()*260);
+        }
+      }, speed);
+    }
+
+    function runBootSequence(arr, onComplete) {
+      let idx = 0;
+      function next(i){
+        if (i >= arr.length) return onComplete();
+        const line = arr[i];
+        const target = clamp((i+1)/arr.length*92 + randInt(-3,6), 2, 98);
+        const progTimer = setInterval(()=> {
+          progress = smooth(progress, target, 0.06);
+          bootBarEl.style.width = Math.round(progress) + "%";
+          if (Math.abs(progress - target) < 0.6) clearInterval(progTimer);
+        }, 110);
+        typeLine(line, i, ()=> next(i+1));
+      }
+      next(0);
+    }
+
+    function flashAccess() {
+      flash.classList.add('active');
+      setTimeout(()=> flash.classList.remove('active'), 1100);
+    }
+
+    function accessGrantedSequence() {
+      const finalLine = "\nACCESS GRANTED · ROOT ACCESS UNLOCKED ✅\n";
+      const finish = setInterval(()=> {
+        progress = smooth(progress, 100, 0.12);
+        bootBarEl.style.width = Math.round(progress) + "%";
+        if (progress > 99.6) {
+          clearInterval(finish);
+          let i=0;
+          const str = finalLine;
+          const t = setInterval(()=> {
+            currentText += str.charAt(i);
+            bootLinesEl.textContent = currentText;
+            i++;
+            if (i >= str.length) {
+              clearInterval(t);
+              flashAccess();
+              setTimeout(()=> {
+                showWelcomeAura();
+                startLiveStats();
+                startSignature();
+                startFlamePulse();
+              }, 700);
+            }
+          }, 18);
+        }
+      }, 90);
+    }
+
+    function showWelcomeAura(){
+      const left = document.getElementById('leftCol');
+      left.style.boxShadow = "0 30px 140px rgba(0,255,176,0.06)";
+      currentText += `\n> Welcome ${username.toUpperCase()} — ROOT MODE ACTIVE\n\n`;
+      bootLinesEl.textContent = currentText;
+    }
+
+    /* ---------- stats ---------- */
+    const pingVal = document.getElementById('pingVal');
+    const loadVal = document.getElementById('loadVal');
+    const pingBar = document.getElementById('pingBar');
+    const loadBar = document.getElementById('loadBar');
+    const uptimeEl = document.getElementById('uptime');
+    const lastCheck = document.getElementById('lastCheck');
+    const siteNameEl = document.getElementById('siteName');
+    const secStateEl = document.getElementById('secState');
+    const hostDot = document.getElementById('hostDot');
+
+    let ping = randInt(18, 75);
+    let load = randInt(12, 48);
+    let uptimeStart = Date.now() - randInt(1000*60*60*3, 1000*60*60*36);
+
+    function formatUptime(ms) {
+      const s = Math.floor(ms/1000);
+      const h = Math.floor(s/3600);
+      const m = Math.floor((s%3600)/60);
+      return `${h}h ${m}m`;
+    }
+
+    function updateStatsTick() {
+      const targetPing = clamp(Math.round(ping + randInt(-8, 12)), 12, 200);
+      const targetLoad = clamp(Math.round(load + randInt(-6, 10)), 6, 98);
+
+      ping = Math.round(smooth(ping, targetPing, 0.14));
+      load = Math.round(smooth(load, targetLoad, 0.12));
+
+      pingVal.textContent = `${ping} ms`;
+      loadVal.textContent = `${load} %`;
+
+      pingBar.style.width = clamp(Math.round((ping / 250)*100), 3, 100) + "%";
+      loadBar.style.width = clamp(load, 3, 100) + "%";
+
+      uptimeEl.textContent = formatUptime(Date.now() - uptimeStart);
+      lastCheck.textContent = "Last check: " + (new Date()).toLocaleTimeString();
+
+      if (Math.random() < 0.06) {
+        secStateEl.textContent = "NOTICE: High Load";
+        secStateEl.style.color = "#ffc27a";
+      } else {
+        secStateEl.textContent = "HARDENED";
+        secStateEl.style.color = "#bfffe0";
+      }
+
+      // animate host dot glow by load
+      const glow = clamp(load / 60, 0.12, 1.2);
+      hostDot.style.boxShadow = `0 0 ${8 + glow*24}px rgba(0,255,176,${0.06 + glow*0.12})`;
+      hostDot.style.transform = `scale(${1 + glow*0.06})`;
+    }
+
+    let statsInterval = null;
+    function startLiveStats() {
+      updateStatsTick();
+      statsInterval = setInterval(updateStatsTick, 1700 + Math.random()*1600);
+      setInterval(()=> {
+        const flick = Math.random() < 0.25 ? randInt(-6,10) : randInt(-2,4);
+        ping = clamp(Math.round(ping + flick), 10, 300);
+      }, 800 + Math.random()*700);
+    }
+
+    /* ---------- dynamic holographic flame ---------- */
+    // We'll modulate SVG scales, opacities, and ember positions based on 'load'
+    const flame = document.getElementById('hflame');
+    const core = document.getElementById('core');
+    const mid = document.getElementById('mid');
+    const edge = document.getElementById('edge');
+    const embers = document.getElementById('embers');
+    const flameWrap = document.getElementById('flameWrap');
+
+    let flamePulse = 0.0;
+
+    function startFlamePulse() {
+      // smooth pulsing, influenced by load
+      setInterval(()=> {
+        // target pulse based on load (higher load -> stronger pulse)
+        const target = clamp(load / 100, 0.06, 1.2);
+        flamePulse = smooth(flamePulse, target, 0.12);
+
+        // scale flame slightly
+        const s = 0.9 + flamePulse * 0.45;
+        flameWrap.style.transform = `scale(${s}) rotate(${Math.sin(Date.now()/1600)*3}deg)`;
+
+        // change opacity of layers
+        core.setAttribute('opacity', 0.9 + flamePulse*0.08);
+        mid.setAttribute('opacity', 0.45 + flamePulse*0.18);
+        edge.setAttribute('opacity', 0.25 + flamePulse*0.22);
+
+        // embers drift effect (move little circles)
+        const children = embers.querySelectorAll('circle');
+        children.forEach((c, i) => {
+          const dx = Math.sin(Date.now()/600 + i*1.4) * (4 + flamePulse*8);
+          const dy = -Math.abs(Math.cos(Date.now()/700 + i*1.2) * (6 + flamePulse*18));
+          const cx = 72 + dx;
+          const cy = (38 + dy) - i*6;
+          c.setAttribute('cx', cx);
+          c.setAttribute('cy', cy);
+          c.setAttribute('r', 1.2 + (i*0.3) + flamePulse*0.9);
+          c.setAttribute('opacity', 0.6 + flamePulse*0.35);
+        });
+
+        // subtle aura (halo) via avatar box shadow
+        const glow = 6 + flamePulse*36;
+        document.getElementById('avatar').style.boxShadow = `0 12px ${30 + flamePulse*80}px rgba(111,0,255,${0.05+flamePulse*0.06})`;
+      }, 120);
+    }
+
+    /* ---------- signature (typed) ---------- */
+    const signatureEl = document.getElementById('signature');
+    const signatureText = `• dev@${username.toLowerCase()} · core: heavenly-flame · lastSync ${new Date().toLocaleDateString()}`;
+    let sigI = 0;
+    function startSignature(){
+      sigI = 0;
+      signatureEl.textContent = "";
+      const t = setInterval(()=> {
+        signatureEl.textContent += signatureText.charAt(sigI);
+        sigI++;
+        if (sigI >= signatureText.length) clearInterval(t);
+      }, 28);
+    }
+
+    /* ---------- manual actions ---------- */
+    document.getElementById('recheck').addEventListener('click', ()=> {
+      currentText += `\n> Manual re-check requested by ${username} ...\n`;
+      bootLinesEl.textContent = currentText;
+      flashAccess();
+      ping += randInt(-6,6);
+      load = clamp(load + randInt(-4,8), 5, 98);
+      updateStatsTick();
+    });
+
+    document.getElementById('forceLogout').addEventListener('click', ()=> {
+      currentText += `\n> FORCE LOGOUT initiated ... terminating sessions...\n`;
+      bootLinesEl.textContent = currentText;
+      flashAccess();
+      setTimeout(()=> {
+        currentText += "> All sessions closed. Redirecting...\n";
+        bootLinesEl.textContent = currentText;
+        setTimeout(()=> {
+          window.location.href = "index.html";
+        }, 900);
+      }, 700);
+    });
+
+    siteNameEl.textContent = localStorage.getItem('site') || "nova.app";
+    document.getElementById('hostName').textContent = "ojas-server";
+
+    /* ---------- kick-off ---------- */
+    runBootSequence(steps, ()=> {
+      setTimeout(accessGrantedSequence, 360 + Math.random()*320);
+    });
+
+    // fallback stats & flame
+    setTimeout(()=> { if (!statsInterval) startLiveStats(); }, 6000);
+    setTimeout(()=> { startFlamePulse(); }, 2000);
+
+    // safety: prevent accidental text selection while typing effect
+    bootLinesEl.addEventListener('mousedown', e => e.preventDefault());
+  </script>
+</body>
+</html>
